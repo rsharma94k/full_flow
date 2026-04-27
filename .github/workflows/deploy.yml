@@ -22,7 +22,7 @@ jobs:
             - name: Install dependencies
               run: poetry install
             - name: Run Tests
-              run: poetry run pytest
+              run: poetry run python -m pytest
 
     # --- STAGE 2: BUILD & SECURITY SCAN ---
     build-and-scan:
