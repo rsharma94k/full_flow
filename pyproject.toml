@@ -1,0 +1,18 @@
+[project]
+name = "test-flow"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "dev",email = "test@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi (>=0.136.1,<0.137.0)",
+    "pytest (>=9.0.3,<10.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

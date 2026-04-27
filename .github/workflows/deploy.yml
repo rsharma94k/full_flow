@@ -1,0 +1,73 @@
+name: CI/CD Pipeline
+
+on:
+    push:
+        branches: [ main ]
+    pull_request:
+        branches: [ main ]
+
+jobs:
+    # --- STAGE 1: TEST & LINT ---
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - name: Install Poetry
+              run: pipx install poetry
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+                  cache: "poetry"
+            - name: Install dependencies
+              run: poetry install
+            - name: Run Tests
+              run: poetry run pytest
+
+    # --- STAGE 2: BUILD & SECURITY SCAN ---
+    build-and-scan:
+        needs: test
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+        permissions:
+            packages: write
+            contents: read
+            security-events: write # Allows Snyk to post to the GitHub 'Security' tab
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Build Local Image for Scanning
+              # We build locally first so Snyk can inspect the image before it's public
+              run: docker build -t local-app-image .
+
+            - name: Run Snyk to check Docker image for vulnerabilities
+              uses: snyk/actions/docker@master
+              env:
+                  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+              with:
+                  image: local-app-image
+                  # --severity-threshold=high means the build will FAIL if high-risk bugs are found
+                  args: --file=Dockerfile --severity-threshold=high
+
+            - name: Log in to GHCR
+              uses: docker/login-action@v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Push Verified Image to GHCR
+              run: |
+                  REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+                  docker tag local-app-image ghcr.io/$REPO_LOWER:latest
+                  docker push ghcr.io/$REPO_LOWER:latest
+
+    # --- STAGE 3: DEPLOY ---
+    deploy:
+        needs: build-and-scan
+        runs-on: ubuntu-latest
+        steps:
+            - name: Trigger Render Deploy
+              run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
