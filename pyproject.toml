@@ -11,7 +11,8 @@ dependencies = [
     "fastapi (>=0.136.1,<0.137.0)",
     "pytest (>=9.0.3,<10.0.0)",
     "uvicorn[standard] (>=0.27.0)",
-    "gunicorn (>=21.2.0)"
+    "gunicorn (>=21.2.0)",
+    "httpx (>=0.28.1,<0.29.0)"
 ]
 
 [tool.poetry]
