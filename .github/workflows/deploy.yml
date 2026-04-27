@@ -7,8 +7,7 @@ on:
         branches: [ main ]
 
 jobs:
-    # --- STAGE 1: TEST ---
-    test:
+    test-and-scan:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
@@ -26,12 +25,24 @@ jobs:
             - name: Install dependencies
               run: poetry install --no-root
 
+            # --- SNYK SCAN (POETRY/LOCK FILE) ---
+            - name: Install Snyk CLI
+              run: |
+                  curl https://static.snyk.io/cli/latest/snyk-linux -o snyk
+                  chmod +x ./snyk
+
+            - name: Snyk Open Source Scan
+              env:
+                  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+              # This scans your poetry.lock for vulnerable python packages
+              run: ./snyk test --file=poetry.lock --package-manager=poetry
+                  --severity-threshold=high
+
             - name: Run Tests
               run: poetry run python -m pytest
 
-    # --- STAGE 2: BUILD, SCAN, & PUSH ---
-    build-and-deploy:
-        needs: test
+    build-and-push:
+        needs: test-and-scan
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         runs-on: ubuntu-latest
         permissions:
@@ -45,26 +56,6 @@ jobs:
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
 
-            - name: Install Snyk CLI
-              run: |
-                  curl https://static.snyk.io/cli/latest/snyk-linux -o snyk
-                  chmod +x ./snyk
-                  sudo mv ./snyk /usr/local/bin/snyk
-
-            - name: Build Local Image
-              uses: docker/build-push-action@v5
-              with:
-                  context: .
-                  load: true # Pushes the image to the local Docker daemon
-                  tags: local-app-image:latest
-
-            - name: Snyk Container Scan
-              env:
-                  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-              # We use '|| true' temporarily if you want to skip blocking on errors, 
-              # but for now, we keep it strict to find the bug.
-              run: snyk container test local-app-image:latest --severity-threshold=high
-
             - name: Log in to GHCR
               uses: docker/login-action@v3
               with:
@@ -72,12 +63,17 @@ jobs:
                   username: ${{ github.actor }}
                   password: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Tag and Push Verified Image
-              run: |
-                  REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-                  docker tag local-app-image:latest ghcr.io/$REPO_LOWER:latest
-                  docker push ghcr.io/$REPO_LOWER:latest
+            - name: Build and Push to GHCR
+              uses: docker/build-push-action@v5
+              with:
+                  context: .
+                  push: true
+                  tags: |
+                      ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
 
+    deploy:
+        needs: build-and-push
+        runs-on: ubuntu-latest
+        steps:
             - name: Trigger Render Deploy
-              run: |
-                  curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+              run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
