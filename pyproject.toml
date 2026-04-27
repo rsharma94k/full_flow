@@ -1,17 +1,21 @@
 [project]
 name = "test-flow"
 version = "0.1.0"
-description = ""
+description = "FastAPI CI/CD project"
 authors = [
-    {name = "dev",email = "test@gmail.com"}
+    {name = "dev", email = "test@gmail.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi (>=0.136.1,<0.137.0)",
-    "pytest (>=9.0.3,<10.0.0)"
+    "pytest (>=9.0.3,<10.0.0)",
+    "uvicorn[standard] (>=0.27.0)",
+    "gunicorn (>=21.2.0)"
 ]
 
+[tool.poetry]
+package-mode = false  # This tells Poetry 2.0 NOT to treat this as a library
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
