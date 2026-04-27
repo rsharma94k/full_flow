@@ -23,6 +23,17 @@ jobs:
             - name: Run Tests
               run: poetry run python -m pytest
 
+            - name: Install Snyk CLI
+              run: |
+                  curl https://static.snyk.io/cli/latest/snyk-linux -o snyk
+                  chmod +x ./snyk
+                  sudo mv ./snyk /usr/local/bin/snyk
+
+            - name: Snyk Open Source Scan
+              env:
+                  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+              run: poetry run snyk test --all-projects
+
     build-and-scan:
         needs: test
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
