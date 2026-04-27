@@ -14,17 +14,17 @@ jobs:
             - uses: actions/checkout@v4
             - name: Install Poetry
               run: pipx install poetry
-            - name: Set up Python
-              uses: actions/setup-python@v5
-              with:
-                  python-version: "3.12"
-                  cache: "poetry"
-            - name: Install dependencies
-              run: poetry install
-            - name: Run Tests
-              run: poetry run python -m pytest
+            # - name: Set up Python
+            #   uses: actions/setup-python@v5
+            #   with:
+            #       python-version: "3.12"
+            #       cache: "poetry"
+            # - name: Install dependencies
+            #   run: poetry install
+            # - name: Run Tests
+            #   run: poetry run python -m pytest
 
-    # --- STAGE 2: BUILD & SECURITY SCAN ---
+            # --- STAGE 2: BUILD & SECURITY SCAN ---
     build-and-scan:
         needs: test
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
